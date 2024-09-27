@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../task_provider.dart';
 import '../models/task.dart';
 import '../widgets/app_bar_design.dart';
 import 'todos_add.dart';
@@ -11,23 +13,18 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  final List<Task> _taskList = [];
   String _filterOption = 'All';
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Provider.of<TaskProvider>(context, listen: false).fetchTasks();
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    List<Task> filteredTaskList;
-
-    if (_filterOption == 'All') {
-      filteredTaskList = _taskList;
-    } else if (_filterOption == 'Done') {
-      filteredTaskList = _taskList.where((task) => task.taskFinished).toList();
-    } else if (_filterOption == 'Undone') {
-      filteredTaskList = _taskList.where((task) => !task.taskFinished).toList();
-    } else {
-      filteredTaskList = _taskList;
-    }
-
     return Scaffold(
       appBar: AppBarDesign(
         actions: [
@@ -39,73 +36,70 @@ class _HomePageState extends State<HomePage> {
             },
             itemBuilder: (BuildContext context) {
               return [
-                const PopupMenuItem<String>(
-                  value: 'All',
-                  child: Text("All"),
-                ),
-                const PopupMenuItem<String>(
-                  value: 'Done',
-                  child: Text("Done"),
-                ),
-                const PopupMenuItem<String>(
-                  value: 'Undone',
-                  child: Text("Undone"),
-                ),
+                const PopupMenuItem(value: 'All', child: Text("All")),
+                const PopupMenuItem(value: 'Done', child: Text("Done")),
+                const PopupMenuItem(value: 'Undone', child: Text("Undone")),
               ];
             },
           ),
         ],
       ),
-      body: ListView.separated(
-        itemCount: filteredTaskList.length,
-        itemBuilder: (context, index) {
-          final task = filteredTaskList[index];
-          return ListTile(
-            leading: Checkbox(
-              value: task.taskFinished,
-              onChanged: (bool? value) {
-                setState(() {
-                  task.taskFinished = value ?? false;
-                });
-              },
-              activeColor: Theme.of(context).colorScheme.secondary,
+      body: Consumer<TaskProvider>(
+        builder: (context, taskProvider, child) {
+          List<Task> filteredTaskList = _filterOption == 'All'
+              ? taskProvider.taskList
+              : taskProvider.taskList.where((task) {
+                  return _filterOption == 'Done' ? task.done : !task.done;
+                }).toList();
+
+          return ListView.separated(
+            itemCount: filteredTaskList.length,
+            itemBuilder: (context, index) {
+              final task = filteredTaskList[index];
+              return ListTile(
+                leading: Checkbox(
+                  value: task.done,
+                  onChanged: (bool? value) {
+                    final updatedTask = Task(
+                      id: task.id,
+                      title: task.title,
+                      done: value ?? false,
+                    );
+                    taskProvider.updateTask(updatedTask);
+                  },
+                  activeColor: Theme.of(context).colorScheme.secondary,
+                ),
+                title: Text(
+                  task.title,
+                  style: TextStyle(
+                    fontSize: 20,
+                    decoration: task.done ? TextDecoration.lineThrough : null,
+                  ),
+                ),
+                trailing: IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () {
+                    taskProvider.deleteTask(task);
+                  },
+                ),
+              );
+            },
+            separatorBuilder: (context, index) => Divider(
+              color: Theme.of(context).dividerColor,
+              thickness: 1,
             ),
-            title: Text(
-              task.input,
-              style: TextStyle(
-                fontSize: 20,
-                decoration:
-                    task.taskFinished ? TextDecoration.lineThrough : null,
-              ),
-            ),
-            trailing: IconButton(
-              icon: const Icon(Icons.close),
-              onPressed: () {
-                setState(() {
-                  _taskList.remove(task);
-                });
-              },
-            ),
-          );
-        },
-        separatorBuilder: (context, index) {
-          return Divider(
-            color: Theme.of(context).dividerColor,
-            thickness: 1,
           );
         },
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
-          final newTaskInput = await Navigator.push(
+          final newTaskTitle = await Navigator.push(
             context,
             MaterialPageRoute(builder: (context) => const TodosAdd()),
           );
-
-          if (newTaskInput != null) {
-            setState(() {
-              _taskList.add(Task(input: newTaskInput));
-            });
+          if (newTaskTitle != null) {
+            final newTask = Task(title: newTaskTitle);
+            Provider.of<TaskProvider>(context, listen: false).addTask(newTask);
           }
         },
         child: const Icon(Icons.add),
