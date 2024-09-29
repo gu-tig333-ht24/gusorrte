@@ -1,8 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'screens/home_page.dart';
+import 'task_provider.dart';
 
 void main() {
-  runApp(const MyApp());
+  runApp(
+    ChangeNotifierProvider(
+      create: (_) => TaskProvider(),
+      child: const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -13,9 +20,9 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       theme: ThemeData(
         brightness: Brightness.dark,
-        colorScheme: ColorScheme.dark(
-          primary: const Color.fromARGB(255, 62, 88, 158),
-          secondary: const Color.fromARGB(255, 255, 255, 255),
+        colorScheme: const ColorScheme.dark(
+          primary: Color.fromARGB(255, 62, 88, 158),
+          secondary: Color.fromARGB(255, 255, 255, 255),
         ),
       ),
       home: const HomePage(),
